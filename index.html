@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Startup Bookmarks</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      font-family: sans-serif;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .bookmark {
+      background: #1a1a1a;
+      padding: 1rem;
+      border-radius: 12px;
+      text-align: center;
+      text-decoration: none;
+      color: #fff;
+      transition: background 0.3s;
+      word-break: break-word;
+    }
+
+    .bookmark:hover {
+      background: #333;
+    }
+
+    .error {
+      color: red;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>motionkartik</h1>
+  <div class="grid" id="bookmarksGrid"></div>
+  <div class="error" id="errorMessage"></div>
+
+  <script>
+    // 🔗 Replace this with your CSV raw link (must be direct access)
+    const CSV_URL = "https://raw.githubusercontent.com/motionkartik/startpage/refs/heads/main/bookmarks.csv";
+
+    fetch(CSV_URL)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Could not load bookmarks.');
+        }
+        return response.text();
+      })
+      .then(csvText => {
+        const lines = csvText.trim().split('\n');
+        const grid = document.getElementById('bookmarksGrid');
+        lines.slice(1).forEach(line => {
+          const [name, url] = line.split(',').map(x => x.trim());
+          if (name && url) {
+            const a = document.createElement('a');
+            a.className = 'bookmark';
+            a.href = url;
+            a.target = '_blank';
+            a.textContent = name;
+            grid.appendChild(a);
+          }
+        });
+      })
+      .catch(err => {
+        document.getElementById('errorMessage').textContent = '⚠️ Error: ' + err.message;
+      });
+  </script>
+</body>
+</html>
