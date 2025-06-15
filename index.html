@@ -1,88 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Startup Bookmarks</title>
   <style>
+    /* Reset box-sizing for consistent sizing */
+    * {
+      box-sizing: border-box;
+    }
+
+    /* Main body layout - dark theme with flex centering */
     body {
       margin: 0;
-      background-color: #000;
-      font-family: sans-serif;
+      padding: 2rem;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2rem;
+      justify-content: flex-end; /* Push content to bottom */
+      min-height: 100vh;
     }
 
+    /* Main heading styling */
     h1 {
-      margin-bottom: 1rem;
+      margin-bottom: 2rem;
+      font-size: 2rem;
+      font-weight: 600;
+      text-align: center;
     }
 
+    /* Search container - holds input and button */
+    .search-container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 2rem;
+    }
+
+    /* Search input field - matches bookmark card styling */
+    .search-box {
+      width: 100%;
+      padding: 1rem 3rem 1rem 1rem; /* Extra right padding for search icon */
+      background: #1a1a1a; /* Same as bookmark cards */
+      border: none;
+      border-radius: 12px; /* Matches bookmark cards */
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: background 0.3s ease;
+    }
+
+    /* Search input focus state */
+    .search-box:focus {
+      background: #333; /* Same as bookmark hover */
+    }
+
+    /* Search button - positioned inside search box */
+    .search-button {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      padding: 8px;
+      transition: color 0.3s ease;
+    }
+
+    /* Search button hover state */
+    .search-button:hover {
+      color: #ccc;
+    }
+
+    /* Search icon styling */
+    .search-button svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    /* Bookmarks grid layout */
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); /* Responsive columns */
+      gap: 1.5rem;
       width: 100%;
       max-width: 1200px;
     }
 
+    /* Individual bookmark card styling */
     .bookmark {
-      background: #1a1a1a;
-      padding: 1rem;
+      background: #1a1a1a; /* Dark card background */
+      padding: 1.5rem 1rem;
       border-radius: 12px;
       text-align: center;
       text-decoration: none;
       color: #fff;
-      transition: background 0.3s;
-      word-break: break-word;
+      transition: all 0.3s ease;
+      word-break: break-word; /* Handle long bookmark names */
     }
 
+    /* Bookmark hover effects */
     .bookmark:hover {
-      background: #333;
+      background: #333; /* Lighter background on hover */
+      transform: translateY(-2px); /* Subtle lift effect */
+      box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1); /* Subtle glow */
     }
 
+    /* Loading state message */
+    .loading {
+      text-align: center;
+      color: #666;
+      font-size: 1.1rem;
+      margin-top: 2rem;
+    }
+
+    /* Error state styling */
     .error {
-      color: red;
-      margin-top: 1rem;
+      color: #ff6b6b;
+      background: rgba(255, 107, 107, 0.1); /* Semi-transparent red background */
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 2rem;
+      text-align: center;
+      border: 1px solid rgba(255, 107, 107, 0.3); /* Subtle red border */
+    }
+
+    /* Mobile responsive design */
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem; /* Reduced padding on mobile */
+      }
+      
+      h1 {
+        font-size: 1.5rem; /* Smaller heading on mobile */
+        margin-bottom: 1.5rem;
+      }
+      
+      .grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Smaller min width */
+        gap: 1rem; /* Reduced gap on mobile */
+      }
+      
+      .bookmark {
+        padding: 1rem 0.75rem; /* Reduced padding on mobile */
+      }
     }
   </style>
 </head>
 <body>
+  <!-- Main page heading -->
   <h1>motionkartik</h1>
-  <div class="grid" id="bookmarksGrid"></div>
-  <div class="error" id="errorMessage"></div>
+  
+  <!-- Google search functionality -->
+  <div class="search-container">
+    <input type="text" class="search-box" id="searchInput">
+    <button class="search-button" id="searchButton">
+      <!-- Search icon SVG -->
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Loading state display -->
+  <div class="loading" id="loading">Loading bookmarks...</div>
+  
+  <!-- Bookmarks grid container -->
+  <div class="grid" id="bookmarks" style="display: none;"></div>
+  
+  <!-- Error state display -->
+  <div class="error" id="error" style="display: none;"></div>
 
   <script>
-    // 🔗 Replace this with your CSV raw link (must be direct access)
+    // Configuration - CSV file URL containing bookmarks data
     const CSV_URL = "https://raw.githubusercontent.com/motionkartik/startpage/refs/heads/main/bookmarks.csv";
+    
+    // Cache DOM elements for better performance
+    const elements = {
+      loading: document.getElementById('loading'),
+      bookmarks: document.getElementById('bookmarks'),
+      error: document.getElementById('error'),
+      searchInput: document.getElementById('searchInput'),
+      searchButton: document.getElementById('searchButton')
+    };
 
-    fetch(CSV_URL)
-      .then(response => {
+    /**
+     * Manages the visibility of different UI states
+     * @param {string} state - The state to show ('loading', 'bookmarks', or 'error')
+     */
+    function showState(state) {
+      elements.loading.style.display = state === 'loading' ? 'block' : 'none';
+      elements.bookmarks.style.display = state === 'bookmarks' ? 'grid' : 'none';
+      elements.error.style.display = state === 'error' ? 'block' : 'none';
+    }
+
+    /**
+     * Displays an error message to the user
+     * @param {string} message - The error message to display
+     */
+    function showError(message) {
+      showState('error');
+      elements.error.textContent = `⚠️ ${message}`;
+    }
+
+    /**
+     * Parses CSV data and extracts bookmark information
+     * @param {string} csv - Raw CSV text data
+     * @returns {Array} Array of bookmark objects with name and url properties
+     */
+    function parseBookmarks(csv) {
+      return csv
+        .trim() // Remove leading/trailing whitespace
+        .split('\n') // Split into lines
+        .slice(1) // Skip header row
+        .map(line => {
+          // Split each line by comma and trim whitespace
+          const [name, url] = line.split(',').map(s => s.trim());
+          return { name, url };
+        })
+        .filter(bookmark => bookmark.name && bookmark.url); // Filter out invalid entries
+    }
+
+    /**
+     * Creates a bookmark DOM element
+     * @param {Object} bookmark - Bookmark object with name and url properties
+     * @returns {HTMLAnchorElement} Bookmark link element
+     */
+    function createBookmark(bookmark) {
+      const link = document.createElement('a');
+      link.className = 'bookmark';
+      link.href = bookmark.url;
+      link.target = '_blank'; // Open in new tab
+      link.rel = 'noopener noreferrer'; // Security best practice
+      link.textContent = bookmark.name;
+      link.title = bookmark.name; // Tooltip text
+      return link;
+    }
+
+    /**
+     * Performs Google search with the current search input value
+     */
+    function performSearch() {
+      const query = elements.searchInput.value.trim();
+      
+      if (query) {
+        // Open Google search in new tab with encoded query
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+        // Clear search input after search
+        elements.searchInput.value = '';
+      }
+    }
+
+    /**
+     * Loads bookmarks from CSV file and displays them
+     * Handles loading states and error conditions
+     */
+    async function loadBookmarks() {
+      showState('loading');
+      
+      try {
+        // Fetch CSV data from GitHub
+        const response = await fetch(CSV_URL);
+        
+        // Check if request was successful
         if (!response.ok) {
-          throw new Error('Could not load bookmarks.');
+          throw new Error(`HTTP ${response.status}: Could not load bookmarks`);
         }
-        return response.text();
-      })
-      .then(csvText => {
-        const lines = csvText.trim().split('\n');
-        const grid = document.getElementById('bookmarksGrid');
-        lines.slice(1).forEach(line => {
-          const [name, url] = line.split(',').map(x => x.trim());
-          if (name && url) {
-            const a = document.createElement('a');
-            a.className = 'bookmark';
-            a.href = url;
-            a.target = '_blank';
-            a.textContent = name;
-            grid.appendChild(a);
-          }
+        
+        // Parse response as text
+        const csv = await response.text();
+        const bookmarks = parseBookmarks(csv);
+        
+        // Validate that we have bookmarks
+        if (bookmarks.length === 0) {
+          throw new Error('No valid bookmarks found');
+        }
+        
+        // Clear existing bookmarks and add new ones
+        elements.bookmarks.innerHTML = '';
+        bookmarks.forEach(bookmark => {
+          elements.bookmarks.appendChild(createBookmark(bookmark));
         });
-      })
-      .catch(err => {
-        document.getElementById('errorMessage').textContent = '⚠️ Error: ' + err.message;
-      });
+        
+        // Show the bookmarks grid
+        showState('bookmarks');
+        
+      } catch (error) {
+        // Log error for debugging and show user-friendly message
+        console.error('Bookmark loading failed:', error);
+        showError(error.message);
+      }
+    }
+
+    // Event listeners setup
+    
+    // Handle Enter key press in search input
+    elements.searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') performSearch();
+    });
+
+    // Handle search button click
+    elements.searchButton.addEventListener('click', performSearch);
+
+    // Initialize the application when DOM is ready
+    document.addEventListener('DOMContentLoaded', loadBookmarks);
   </script>
 </body>
-</html>
+  </html>
