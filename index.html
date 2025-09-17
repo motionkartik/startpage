@@ -177,11 +177,11 @@
       .folder-view { padding: 1.5rem; }
     }
 
-    /* >>> ADDED FOR DESKTOP VIEW <<< */
+    /* DESKTOP VIEW */
     @media (min-width: 769px) {
       body {
-        justify-content: flex-start; /* Align to top on desktop */
-        padding-top: 4rem;          /* Add some space from the top edge */
+        justify-content: flex-start;
+        padding-top: 4rem;
       }
     }
   </style>
@@ -261,20 +261,12 @@
       }).filter(Boolean);
     }
     
-    /**
-     * >>> CHANGED <<<
-     * Gets a clean, capitalized name from a URL.
-     * e.g., "https://chat.qwen.ai/new" becomes "Qwen"
-     * @param {string} url - The full URL
-     * @returns {string} The formatted name
-     */
+     //  * Clean, capitalized name from a URL.
     function getNameFromUrl(url) {
         try {
             const hostname = new URL(url).hostname;
             const parts = hostname.replace(/^www\./, '').split('.');
-            // Get the name part (e.g., "qwen" from "chat.qwen.ai")
             const namePart = parts.length > 1 ? parts[parts.length - 2] : parts[0];
-            // Capitalize the first letter
             return namePart.charAt(0).toUpperCase() + namePart.slice(1);
         } catch (e) {
             return "Invalid URL"; // Fallback for invalid URLs
@@ -310,7 +302,7 @@
         elements.folderViewContent.innerHTML = '';
 
         folderBookmark.urls.forEach(url => {
-            const name = getNameFromUrl(url); // Using the new function here
+            const name = getNameFromUrl(url);
             const linkEl = createLinkElement({ name, url, title: url });
             elements.folderViewContent.appendChild(linkEl);
         });
