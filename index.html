@@ -103,45 +103,85 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
     }
+    
+    .bookmark--folder {
+        cursor: pointer;
+    }
 
     /* Status messages */
     .loading,
     .error {
       text-align: center;
       margin-top: 2rem;
-      padding: 1rem;
-      border-radius: 8px;
-    }
-
-    .loading {
-      color: #666;
-      font-size: 1.1rem;
     }
 
     .error {
+      padding: 1rem;
+      border-radius: 8px;
       color: #ff6b6b;
       background: rgba(255, 107, 107, 0.1);
       border: 1px solid rgba(255, 107, 107, 0.3);
     }
 
+    /* Folder View Styles */
+    .folder-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .folder-view {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      background-color: #101010;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 800px;
+      z-index: 101;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .folder-overlay.visible,
+    .folder-view.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .folder-view.visible {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .folder-view h2 {
+      margin-top: 0;
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 2rem;
+    }
+
     /* Responsive design */
     @media (max-width: 768px) {
+      body { padding: 1rem; }
+      h1 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+      .grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; }
+      .bookmark { padding: 1rem 0.75rem; }
+      .folder-view { padding: 1.5rem; }
+    }
+
+    /* >>> ADDED FOR DESKTOP VIEW <<< */
+    @media (min-width: 769px) {
       body {
-        padding: 1rem;
-      }
-      
-      h1 {
-        font-size: 1.5rem;
-        margin-bottom: 1.5rem;
-      }
-      
-      .grid {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 1rem;
-      }
-      
-      .bookmark {
-        padding: 1rem 0.75rem;
+        justify-content: flex-start; /* Align to top on desktop */
+        padding-top: 4rem;          /* Add some space from the top edge */
       }
     }
   </style>
@@ -162,10 +202,16 @@
   <div class="grid" id="bookmarks" style="display: none;"></div>
   <div class="error" id="error" style="display: none;"></div>
 
+  <div id="folderOverlay" class="folder-overlay"></div>
+  <div id="folderView" class="folder-view">
+    <h2 id="folderViewTitle"></h2>
+    <div id="folderViewContent" class="grid"></div>
+  </div>
+
   <script>
     // Configuration
     const CONFIG = {
-      CSV_URL: 'https://raw.githubusercontent.com/motionkartik/startpage/refs/heads/main/bookmarks.csv',
+      CSV_URL: 'bookmarks.csv',
       SEARCH_ENGINE: 'https://www.google.com/search?q='
     };
 
@@ -175,7 +221,11 @@
       bookmarks: document.getElementById('bookmarks'),
       error: document.getElementById('error'),
       searchInput: document.getElementById('searchInput'),
-      searchButton: document.getElementById('searchButton')
+      searchButton: document.getElementById('searchButton'),
+      folderOverlay: document.getElementById('folderOverlay'),
+      folderView: document.getElementById('folderView'),
+      folderViewTitle: document.getElementById('folderViewTitle'),
+      folderViewContent: document.getElementById('folderViewContent'),
     };
 
     // State management
@@ -184,94 +234,112 @@
       BOOKMARKS: 'bookmarks',
       ERROR: 'error'
     };
-
-    /**
-     * Manages UI state visibility
-     * @param {string} state - The state to show
-     */
+    
     function showState(state) {
       Object.values(UI_STATES).forEach(uiState => {
-        const element = elements[uiState];
-        if (element) {
-          element.style.display = state === uiState ? 
-            (uiState === UI_STATES.BOOKMARKS ? 'grid' : 'block') : 'none';
-        }
+        elements[uiState].style.display = state === uiState ? 
+          (uiState === 'bookmarks' ? 'grid' : 'block') : 'none';
       });
     }
 
-    /**
-     * Displays error message
-     * @param {string} message - Error message to display
-     */
     function showError(message) {
       showState(UI_STATES.ERROR);
       elements.error.textContent = `⚠️ ${message}`;
     }
 
-    /**
-     * Parses CSV data into bookmark objects
-     * @param {string} csv - Raw CSV text
-     * @returns {Array} Array of bookmark objects
-     */
     function parseBookmarks(csv) {
-      return csv
-        .trim()
-        .split('\n')
-        .slice(1) // Skip header
-        .map(line => {
-          const [name, url] = line.split(',').map(s => s.trim());
-          return { name, url };
-        })
-        .filter(bookmark => bookmark.name && bookmark.url);
+      return csv.trim().split('\n').slice(1).map(line => {
+        const parts = line.split(',').map(s => s.trim()).filter(Boolean);
+        if (parts.length < 2) return null;
+        const name = parts[0];
+        const urls = parts.slice(1);
+        if (urls.length > 1) {
+          return { name, urls, type: 'folder' };
+        } else {
+          return { name, url: urls[0], type: 'link' };
+        }
+      }).filter(Boolean);
+    }
+    
+    /**
+     * >>> CHANGED <<<
+     * Gets a clean, capitalized name from a URL.
+     * e.g., "https://chat.qwen.ai/new" becomes "Qwen"
+     * @param {string} url - The full URL
+     * @returns {string} The formatted name
+     */
+    function getNameFromUrl(url) {
+        try {
+            const hostname = new URL(url).hostname;
+            const parts = hostname.replace(/^www\./, '').split('.');
+            // Get the name part (e.g., "qwen" from "chat.qwen.ai")
+            const namePart = parts.length > 1 ? parts[parts.length - 2] : parts[0];
+            // Capitalize the first letter
+            return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+        } catch (e) {
+            return "Invalid URL"; // Fallback for invalid URLs
+        }
     }
 
-    /**
-     * Creates bookmark DOM element
-     * @param {Object} bookmark - Bookmark data
-     * @returns {HTMLAnchorElement} Bookmark link
-     */
+    function createLinkElement({ name, url, title }) {
+        const link = document.createElement('a');
+        link.className = 'bookmark';
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = name;
+        link.title = title || name;
+        return link;
+    }
+    
     function createBookmark(bookmark) {
-      const link = document.createElement('a');
-      link.className = 'bookmark';
-      link.href = bookmark.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = bookmark.name;
-      link.title = bookmark.name;
-      return link;
+      if (bookmark.type === 'folder') {
+        const folder = document.createElement('div');
+        folder.className = 'bookmark bookmark--folder';
+        folder.textContent = `${bookmark.name} 📁`;
+        folder.title = `Open "${bookmark.name}" folder`;
+        folder.addEventListener('click', () => openFolderView(bookmark));
+        return folder;
+      } else {
+        return createLinkElement(bookmark);
+      }
+    }
+    
+    function openFolderView(folderBookmark) {
+        elements.folderViewTitle.textContent = folderBookmark.name;
+        elements.folderViewContent.innerHTML = '';
+
+        folderBookmark.urls.forEach(url => {
+            const name = getNameFromUrl(url); // Using the new function here
+            const linkEl = createLinkElement({ name, url, title: url });
+            elements.folderViewContent.appendChild(linkEl);
+        });
+
+        elements.folderOverlay.classList.add('visible');
+        elements.folderView.classList.add('visible');
     }
 
-    /**
-     * Performs web search
-     */
+    function closeFolderView() {
+        elements.folderOverlay.classList.remove('visible');
+        elements.folderView.classList.remove('visible');
+    }
+
     function performSearch() {
       const query = elements.searchInput.value.trim();
-      
       if (query) {
         window.open(`${CONFIG.SEARCH_ENGINE}${encodeURIComponent(query)}`, '_blank');
         elements.searchInput.value = '';
       }
     }
 
-    /**
-     * Loads and displays bookmarks
-     */
     async function loadBookmarks() {
       showState(UI_STATES.LOADING);
-      
       try {
         const response = await fetch(CONFIG.CSV_URL);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: Could not load bookmarks`);
-        }
-        
+        if (!response.ok) throw new Error(`HTTP ${response.status}: Could not load bookmarks`);
         const csv = await response.text();
         const bookmarks = parseBookmarks(csv);
-        
-        if (bookmarks.length === 0) {
-          throw new Error('No valid bookmarks found');
-        }
+        if (bookmarks.length === 0) throw new Error('No valid bookmarks found');
         
         elements.bookmarks.innerHTML = '';
         bookmarks.forEach(bookmark => {
@@ -279,7 +347,6 @@
         });
         
         showState(UI_STATES.BOOKMARKS);
-        
       } catch (error) {
         console.error('Bookmark loading failed:', error);
         showError(error.message);
@@ -290,8 +357,14 @@
     elements.searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') performSearch();
     });
-
     elements.searchButton.addEventListener('click', performSearch);
+    
+    elements.folderOverlay.addEventListener('click', closeFolderView);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeFolderView();
+        }
+    });
 
     // Initialize
     document.addEventListener('DOMContentLoaded', loadBookmarks);
