@@ -25,6 +25,7 @@
 
     /* Typography */
     h1 {
+      color: #ffffff;
       margin-bottom: 2rem;
       font-size: 2rem;
       font-weight: 600;
@@ -104,8 +105,14 @@
       box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
     }
     
-    .bookmark--folder {
+        .bookmark--folder {
         cursor: pointer;
+        outline: 1px solid #353535;
+        outline-offset: 3px;
+    }
+
+    .bookmark--folder:hover {
+        outline-color: #b3b3b3;
     }
 
     /* Status messages */
@@ -262,12 +269,28 @@
     }
     
      //  * Clean, capitalized name from a URL.
-    function getNameFromUrl(url) {
+        function getNameFromUrl(url) {
         try {
             const hostname = new URL(url).hostname;
             const parts = hostname.replace(/^www\./, '').split('.');
-            const namePart = parts.length > 1 ? parts[parts.length - 2] : parts[0];
-            return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+            let name = "";
+
+            if (parts.length >= 2) {
+                // Example: gemini.google.com -> Google Gemini
+                // Example: mail.google.com -> Google Mail
+                const domain = parts[parts.length - 2];
+                const subdomain = parts[0];
+
+                if (parts.length > 2 && subdomain !== 'www') { // Check for actual subdomain
+                    name = `${domain.charAt(0).toUpperCase() + domain.slice(1)} ${subdomain.charAt(0).toUpperCase() + subdomain.slice(1)}`;
+                } else { // No significant subdomain or just www
+                    name = domain.charAt(0).toUpperCase() + domain.slice(1);
+                }
+            } else {
+                // Fallback for simple domains like example.com
+                name = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+            }
+            return name;
         } catch (e) {
             return "Invalid URL"; // Fallback for invalid URLs
         }
@@ -288,7 +311,7 @@
       if (bookmark.type === 'folder') {
         const folder = document.createElement('div');
         folder.className = 'bookmark bookmark--folder';
-        folder.textContent = `${bookmark.name} 📁`;
+        folder.textContent = `🗀 ${bookmark.name}`; // folder icon
         folder.title = `Open "${bookmark.name}" folder`;
         folder.addEventListener('click', () => openFolderView(bookmark));
         return folder;
