@@ -311,7 +311,7 @@
       if (bookmark.type === 'folder') {
         const folder = document.createElement('div');
         folder.className = 'bookmark bookmark--folder';
-        folder.textContent = `🗀 ${bookmark.name}`; // folder icon
+        folder.textContent = `${bookmark.name}`; // folder icon
         folder.title = `Open "${bookmark.name}" folder`;
         folder.addEventListener('click', () => openFolderView(bookmark));
         return folder;
